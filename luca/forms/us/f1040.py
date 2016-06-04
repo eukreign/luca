@@ -119,8 +119,11 @@ def compute(form):
     v = info_dict[f.form_version]
 
     f.line6ab = bool(f.line6a) + bool(f.line6b)
-    # TODO: dependents
-    f.line6d = f.line6ab
+    exemptions_count = f.line6ab
+    exemptions_count += getattr(f, 'line6c_lived_with', 0)
+    exemptions_count += getattr(f, 'line6c_not_lived_with', 0)
+    exemptions_count += getattr(f, 'line6c_other', 0)
+    f.line6d = exemptions_count
     f.line22 = dsum(getattr(f, line) for line in income_tally)
     f.line36 = dsum(getattr(f, line) for line in adjustments)
     f.line37 = f.line22 - f.line36
@@ -270,10 +273,21 @@ def fill_out_2013_and_before(form, pdf):
     pdf['c1_05[0]'] = '1' if f.line6a else 'Off'
     pdf['c1_06[0]'] = '1' if f.line6b else 'Off'
 
+    d_pos = [20,21,24, 25,26,30, 31,32,35, 36,37,40] # not uniform numbering
+    d_cbox = 7
+    for (d_name, d_ssn, d_rel, d_credit) in getattr(f, 'dependents', []):
+        pdf['p1-t%s['%d_pos.pop(0)] = d_name
+        pdf['p1-t%s['%d_pos.pop(0)] = d_ssn.replace('-', '')
+        pdf['p1-t%s['%d_pos.pop(0)] = d_rel
+        pdf['c1_%02d['%d_cbox] = '1' if d_credit else 'Off'
+        d_cbox += 1
+
     pdf.pattern = 'p1-t{}['
 
     pdf[19] = str(f.line6ab)
-    # TODO: dependents
+    pdf[42] = str(getattr(f, 'line6c_lived_with', ''))
+    pdf[43] = str(getattr(f, 'line6c_not_lived_with', ''))
+    pdf[44] = str(getattr(f, 'line6c_other', ''))
     pdf[45] = str(f.line6d)
 
     n = 46
